@@ -1,0 +1,21 @@
+# secrets and runtime data: never commit these
+.env
+*.env
+!.env.example
+*.db
+*.sqlite
+backups/
+*.tar.gz
+private/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
