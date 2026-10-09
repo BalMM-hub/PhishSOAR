@@ -1,0 +1,29 @@
+Return-Path: <billing.dept.payments@gmail.com>
+Received: from sender.example (unknown [198.51.100.23]) by mx.google.com; Wed,
+ 7 Oct 2026 09:00:00 +0100
+Authentication-Results: mx.google.com; spf=pass smtp.mailfrom=gmail.com;
+ dkim=pass header.d=gmail.com; dmarc=pass header.from=gmail.com
+From: Accounts <billing.dept.payments@gmail.com>
+To: staff@example.com
+Subject: Final notice: invoice attached
+Date: Wed, 07 Oct 2026 09:00:00 +0100
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============2572573839253055670=="
+
+--===============2572573839253055670==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Payment is overdue. Open the attached invoice immediately. Password: 4421
+
+--===============2572573839253055670==
+Content-Type: application/zip
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Invoice_10421.zip"
+MIME-Version: 1.0
+
+UEsDBBQAAQAAAAAAIQAZvDlvGAAAABgAAAAVAAAAaW52b2ljZV8xMDQyMS5wZGYuZXhlaGFybWxl
+c3MgbGFiIHBsYWNlaG9sZGVyUEsBAhQDFAABAAAAAAAhABm8OW8YAAAAGAAAABUAAAAAAAAAAAAA
+AIABAAAAAGludm9pY2VfMTA0MjEucGRmLmV4ZVBLBQYAAAAAAQABAEMAAABLAAAAAAA=
+
+--===============2572573839253055670==--

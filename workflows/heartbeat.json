@@ -1,0 +1,138 @@
+{
+  "name": "PhishSOAR - Heartbeat",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "06701dcb-cc1e-4ea5-94aa-ace3745faacf",
+      "name": "Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2"
+      },
+      "id": "acdf7b8b-06c9-4cf2-82c2-ee6465f2d26c",
+      "name": "Gmail still connected?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "url": "http://analyzer:8000/health",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "a97b6db0-5b35-447b-be47-c003ab1d3c91",
+      "name": "Analyzer healthy?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "url": "PASTE_YOUR_HEALTHCHECKS_PING_URL",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "285a8bdf-2287-4775-b5e4-05491b57a33f",
+      "name": "Ping Healthchecks (all OK)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "content": "## Heartbeat (dead-man's switch)\nEvery 5 min: checks Gmail login + analyzer, then pings Healthchecks.io.\nIf the server, n8n, Gmail or the analyzer dies, the ping stops and Healthchecks alerts you.",
+        "height": 200,
+        "width": 420
+      },
+      "id": "df088988-f65e-4902-ad0d-96ffbd810884",
+      "name": "About",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Gmail still connected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail still connected?": {
+      "main": [
+        [
+          {
+            "node": "Analyzer healthy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyzer healthy?": {
+      "main": [
+        [
+          {
+            "node": "Ping Healthchecks (all OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none"
+  }
+}

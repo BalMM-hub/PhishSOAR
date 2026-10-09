@@ -1,0 +1,17 @@
+Return-Path: <news@updates.northwind-news.example>
+Received: from sender.example (unknown [192.0.2.10]) by mx.google.com; Wed, 7
+ Oct 2026 09:00:00 +0100
+Authentication-Results: mx.google.com; spf=pass
+ smtp.mailfrom=updates.northwind-news.example; dkim=pass
+ header.d=updates.northwind-news.example; dmarc=pass
+ header.from=updates.northwind-news.example
+From: Northwind Weekly <news@updates.northwind-news.example>
+To: staff@example.com
+Subject: October security tips
+Date: Wed, 07 Oct 2026 09:00:00 +0100
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+This month: turn on MFA, keep software updated, and report suspicious emails.=
+ https://updates.northwind-news.example/october

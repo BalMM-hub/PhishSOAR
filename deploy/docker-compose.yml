@@ -1,0 +1,55 @@
+# Production layout (reference). The analyzer image is the full engine, kept in a private repo.
+# What this file shows: how the two containers are isolated and locked down.
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=Africa/Lagos
+      - TZ=Africa/Lagos
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=72
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - analyzer
+    security_opt:
+      - no-new-privileges:true
+
+  analyzer:
+    build: ./analyzer
+    container_name: mailguard-analyzer
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - HOME=/tmp
+    volumes:
+      - mailguard_data:/data
+    # No "ports:" on purpose: only n8n (inside Docker) can reach the analyzer.
+    # Hardening: the analyzer reads attacker-controlled emails, so lock its box down.
+    read_only: true              # code can't be modified at runtime
+    tmpfs:
+      - /tmp                     # scratch space for OCR, wiped on restart
+    cap_drop:
+      - ALL                      # no special Linux privileges
+    security_opt:
+      - no-new-privileges:true   # can't escalate to root
+    mem_limit: 1g                # a malicious "zip bomb"/huge image can't eat your RAM
+    pids_limit: 200
+
+volumes:
+  n8n_data:
+  mailguard_data:
+
+# Smaller packet size inside Docker. Fixes "SSLError" on big uploads (emails with images)
+# that happens on some Windows/WSL2, VPN and mobile-data connections.
+networks:
+  default:
+    driver_opts:
+      com.docker.network.driver.mtu: "1400"

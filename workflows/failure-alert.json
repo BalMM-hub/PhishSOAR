@@ -1,0 +1,86 @@
+{
+  "name": "PhishSOAR - Failure Alert",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "fbc5f5ba-472b-4024-b2c7-2c907a510bfa",
+      "name": "When a workflow fails",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a826c687-63cd-4afe-8c26-c0494493da75",
+      "name": "Test alert (click Execute)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "PASTE_YOUR_CHAT_ID",
+        "text": "={{ '🚨 PhishSOAR: something failed\\n\\n' + 'Workflow: ' + ($json.workflow?.name ?? 'TEST ALERT') + '\\n' + 'Step that failed: ' + ($json.execution?.lastNodeExecuted ?? '-') + '\\n' + 'Error: ' + ($json.execution?.error?.message ?? 'This is a test message. Alerts are working.') + '\\n' + 'Time: ' + $now.setZone('Africa/Lagos').toFormat('dd LLL yyyy, HH:mm') + '\\n\\n' + 'Open n8n through your SSH tunnel and check Executions.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "367cd862-59bc-4632-b06f-749f241a26fd",
+      "name": "Send Telegram alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Failure alerts\nRuns automatically whenever MailGuard or the Heartbeat workflow fails, and sends you a Telegram message.\n\nUse **Test alert** to check Telegram works.",
+        "height": 200,
+        "width": 360
+      },
+      "id": "b6b0c3db-9a40-4fc8-8038-291972758932",
+      "name": "About",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -60
+      ]
+    }
+  ],
+  "connections": {
+    "When a workflow fails": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test alert (click Execute)": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,534 @@
+{
+  "name": "PhishSOAR - Phishing Triage & Response",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "2c3d7cd6-88c7-4c2c-9d9a-0656ce3d11ac",
+      "name": "Every minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3d4ae842-a5eb-4cf2-a64e-55a82c9abcc8",
+              "name": "client_name",
+              "value": "Demo Company",
+              "type": "string"
+            },
+            {
+              "id": "8a591fab-a534-447e-be5a-2e1858812c40",
+              "name": "alert_emails",
+              "value": "owner@example.com, soc@example.com",
+              "type": "string"
+            },
+            {
+              "id": "e0bde6fc-947a-45ff-b805-16a6b2438f59",
+              "name": "protected_domains",
+              "value": "example.com",
+              "type": "string"
+            },
+            {
+              "id": "04289fcb-ec5f-4d77-aa67-056f78a44702",
+              "name": "trusted_senders",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "e2df6289-8887-4e5d-8b0f-f3d283f4f3d7",
+              "name": "ai_mode",
+              "value": "all",
+              "type": "string"
+            },
+            {
+              "id": "9959024c-f19d-42df-9861-46731537ba61",
+              "name": "alert_on",
+              "value": "suspicious",
+              "type": "string"
+            },
+            {
+              "id": "a3f91c02-50d7-4ef8-b8c8-915b6f601c78",
+              "name": "max_per_run",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "bb2620a0-2b21-467d-b541-1bc23a667581",
+              "name": "lookback",
+              "value": "2d",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3eea22b5-846b-44a3-bbeb-aa20da0e4135",
+      "name": "Client settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// The three Gmail labels MailGuard uses\nreturn ['MailGuard-Scanned', 'MailGuard-Quarantine', 'MailGuard-Suspicious']\n  .map(name => ({ json: { name } }));"
+      },
+      "id": "64b5878f-daae-4a4c-a922-3a8fb51d26c1",
+      "name": "Label names",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.name, labelListVisibility: 'labelShow', messageListVisibility: 'show' }) }}"
+      },
+      "id": "89df0665-4763-4137-ab23-1612beb7db13",
+      "name": "Create labels if missing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "Fails harmlessly (409) when the label already exists"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "options": {}
+      },
+      "id": "685f334b-7772-4dda-b365-08398034aa51",
+      "name": "Get label IDs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const labels = $input.first().json.labels || [];\nconst find = n => (labels.find(l => l.name === n) || {}).id;\nconst ids = { scanned: find('MailGuard-Scanned'), quarantine: find('MailGuard-Quarantine'), suspicious: find('MailGuard-Suspicious') };\nif (!ids.scanned || !ids.quarantine || !ids.suspicious) {\n  throw new Error('MailGuard labels missing in Gmail: ' + JSON.stringify(ids));\n}\nreturn [{ json: ids }];"
+      },
+      "id": "3be9ebec-9226-4345-871b-f6b872312db0",
+      "name": "Map label IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "=in:inbox -label:MailGuard-Scanned newer_than:{{ $('Client settings').first().json.lookback }}"
+            },
+            {
+              "name": "maxResults",
+              "value": "={{ $('Client settings').first().json.max_per_run }}"
+            }
+          ]
+        }
+      },
+      "id": "d1dbb8f4-be38-4a3c-a29e-ed2b01ebfa81",
+      "name": "Find unscanned emails",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// One item per email. No new email = no items = the run stops here quietly.\nconst msgs = $input.first().json.messages || [];\nreturn msgs.map(m => ({ json: { gmail_id: m.id } }));"
+      },
+      "id": "ac0dd579-ff47-4cf8-8a1b-3d0820ae61af",
+      "name": "One item per email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://gmail.googleapis.com/gmail/v1/users/me/messages/{{ $json.gmail_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "format",
+              "value": "raw"
+            }
+          ]
+        }
+      },
+      "id": "7c48d196-b260-4880-a944-003821120229",
+      "name": "Download raw email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://analyzer:8000/analyze",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ raw: $json.raw, gmail_id: $json.id, client: { name: $('Client settings').first().json.client_name, alert_emails: $('Client settings').first().json.alert_emails, protected_domains: $('Client settings').first().json.protected_domains, trusted_senders: $('Client settings').first().json.trusted_senders, ai_mode: $('Client settings').first().json.ai_mode, alert_on: $('Client settings').first().json.alert_on } }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "3bfd2fc9-5b5b-4df0-b067-e4c770174aeb",
+      "name": "MailGuard analyzer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput",
+      "notes": "Parses the email, checks links, attachments, QR codes and images, threat intel, and asks an LLM"
+    },
+    {
+      "parameters": {},
+      "id": "b13078e6-848d-4008-9c91-3b9edd732d92",
+      "name": "Not labelled - retried next run",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        500
+      ],
+      "notes": "If analysis fails, the email keeps no Scanned label, so the next run picks it up again"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Turn label names from the analyzer into this mailbox's Gmail label IDs\nconst ids = $('Map label IDs').first().json;\nconst byName = { 'MailGuard-Scanned': ids.scanned, 'MailGuard-Quarantine': ids.quarantine, 'MailGuard-Suspicious': ids.suspicious };\nconst add = $json.labels.add.map(n => byName[n]).filter(Boolean);\nreturn { json: { ...$json, addLabelIds: add, removeLabelIds: $json.labels.remove } };"
+      },
+      "id": "9ad85d6f-2421-4a46-9c6b-53dea98c8cde",
+      "name": "Build label changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gmail.googleapis.com/gmail/v1/users/me/messages/{{ $json.gmail_id }}/modify",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ addLabelIds: $json.addLabelIds, removeLabelIds: $json.removeLabelIds }) }}"
+      },
+      "id": "ff4986ce-cee3-4354-8325-f74dcda862fe",
+      "name": "Apply labels / quarantine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5b1552a4-6ee4-4b06-ac26-21cfd00bb86d",
+              "leftValue": "={{ $('Build label changes').item.json.send_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "92d27f04-3e98-4dc9-890a-5d136a5ea366",
+      "name": "Alert needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ raw: $('Build label changes').item.json.alert_raw }) }}"
+      },
+      "id": "92267528-5a37-4fac-9aa9-7e963f2ed0e5",
+      "name": "Send alert email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "content": "## PhishSOAR\nEvery minute: find inbox emails without the **MailGuard-Scanned** label → analyze → label.\n\n- **MALICIOUS** → moved to *MailGuard-Quarantine* + alert\n- **SUSPICIOUS** → tagged *MailGuard-Suspicious* + alert\n- **CLEAN** → tagged *MailGuard-Scanned*\n\nNew client? Duplicate this workflow, change **Client settings** and pick their Gmail credential in the Gmail nodes.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "55cfccd2-d8a8-4fcf-b773-61f0cf0b50ed",
+      "name": "About",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    }
+  ],
+  "connections": {
+    "Every minute": {
+      "main": [
+        [
+          {
+            "node": "Client settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client settings": {
+      "main": [
+        [
+          {
+            "node": "Label names",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label names": {
+      "main": [
+        [
+          {
+            "node": "Create labels if missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create labels if missing": {
+      "main": [
+        [
+          {
+            "node": "Get label IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get label IDs": {
+      "main": [
+        [
+          {
+            "node": "Map label IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map label IDs": {
+      "main": [
+        [
+          {
+            "node": "Find unscanned emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find unscanned emails": {
+      "main": [
+        [
+          {
+            "node": "One item per email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per email": {
+      "main": [
+        [
+          {
+            "node": "Download raw email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download raw email": {
+      "main": [
+        [
+          {
+            "node": "MailGuard analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MailGuard analyzer": {
+      "main": [
+        [
+          {
+            "node": "Build label changes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not labelled - retried next run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build label changes": {
+      "main": [
+        [
+          {
+            "node": "Apply labels / quarantine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply labels / quarantine": {
+      "main": [
+        [
+          {
+            "node": "Alert needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert needed?": {
+      "main": [
+        [
+          {
+            "node": "Send alert email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "timezone": "Africa/Lagos"
+  }
+}
